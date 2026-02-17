@@ -4,12 +4,11 @@ import pandas as pd
 
 # --- Page Configuration ---
 st.set_page_config(
-    page_title="IPL Win Predictor",
+    page_title="Betting App Predictor - For cricket",
     page_icon="🏏",
     layout="centered"
 )
 
-# --- Custom CSS for "Betting App" Theme ---
 st.markdown("""
     <style>
     /* Dark Theme Background */
@@ -61,7 +60,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Load Model ---
-# Ensure 'win_predictor.pkl' is in the same folder
 try:
     pipe = pickle.load(open('win_predictor.pkl', 'rb'))
 except FileNotFoundError:
@@ -88,36 +86,65 @@ cities = [
 st.title("🏏 IPL Win Predictor")
 st.markdown("### ⚡ Live Match Odds")
 
+# 1. Team Selection
 col1, col2 = st.columns(2)
-
 with col1:
     batting_team = st.selectbox('🏏 Batting Team', sorted(teams))
 with col2:
-    bowling_team = st.selectbox('bowling Team', sorted(teams))
+    bowling_team = st.selectbox('⚾ Bowling Team', sorted(teams))
 
+# 2. Host City
 selected_city = st.selectbox('🏟️ Host City', sorted(cities))
 
+# 3. Target Score
 target = st.number_input('🎯 Target Score', min_value=0, step=1)
 
+# 4. Match Situation
 col3, col4, col5 = st.columns(3)
 
 with col3:
     score = st.number_input('Current Score', min_value=0, step=1)
-with col4:
-    overs = st.number_input('Overs Completed', min_value=0.0, max_value=20.0, step=0.1)
-with col5:
-    wickets = st.number_input('Wickets Out', min_value=0, max_value=10, step=1)
 
+with col4:
+    # Separate Overs and Balls to ensure correct cricket logic
+    overs = st.number_input('Overs Done', min_value=0, max_value=19, step=1)
+    balls = st.number_input('Balls Done (This Over)', min_value=0, max_value=5, step=1)
+
+with col5:
+    wickets = st.number_input('Wickets Out', min_value=0, max_value=9, step=1)
+
+# --- Prediction Logic ---
 if st.button('🎲 Predict Probability'):
     
-    # 1. Calculation Logic
+    # Validation 1: Same Teams
+    if batting_team == bowling_team:
+        st.error("❌ Batting and Bowling teams cannot be the same!")
+        st.stop()
+    
+    # Validation 2: Score > Target
+    if score >= target:
+        st.error(f"❌ Match Over! {batting_team} has already won.")
+        st.stop()
+        
+    # Validation 3: All Out
+    if wickets >= 10:
+        st.error(f"❌ Match Over! All wickets fell.")
+        st.stop()
+
+    # Calculation Logic
     runs_needed = target - score
-    balls_left = 120 - (overs * 6)
+    
+    # Cricket Logic: Total Balls = (Overs * 6) + Balls in current over
+    total_balls_bowled = (overs * 6) + balls
+    balls_left = 120 - total_balls_bowled
+    
     wickets_left = 10 - wickets
-    crr = score / overs if overs > 0 else 0
+    
+    # Avoid division by zero
+    crr = (score * 6) / total_balls_bowled if total_balls_bowled > 0 else 0
     rrr = (runs_needed * 6) / balls_left if balls_left > 0 else 0
 
-    # 2. Input DataFrame (Must match the Training Columns exactly)
+    # Input DataFrame
     input_df = pd.DataFrame({
         'batting_squad': [batting_team],
         'bowling_squad': [bowling_team],
@@ -130,13 +157,13 @@ if st.button('🎲 Predict Probability'):
         'req_run_rate': [rrr]
     })
 
-    # 3. Prediction
+    # Prediction
     try:
         result = pipe.predict_proba(input_df)
         loss = result[0][0]
         win = result[0][1]
 
-        # 4. Display Results
+        # Display Results
         st.markdown("---")
         st.subheader("📊 Match Probability")
         
