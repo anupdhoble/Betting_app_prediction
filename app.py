@@ -83,7 +83,7 @@ cities = [
 ]
 
 # --- UI Layout ---
-st.title("🏏 IPL Win Predictor")
+st.title("🏏 Betting App Predictor - Cricket dataset")
 st.markdown("### ⚡ Live Match Odds")
 
 # 1. Team Selection
